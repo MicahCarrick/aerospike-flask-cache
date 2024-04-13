@@ -45,13 +45,14 @@ jobs:
       - name: Cache Aerospike Database package
         uses: actions/cache@v3
         with:
-          path: |
-            aerospike.tgz
+          path: aerospike.tgz
+          key: aerospike-${{ matrix.aerospike_version }}
       - name: Install Aerospike Database
         run: |
           tar -xvf aerospike.tgz
           cd aerospike-server-enterprise*
           sudo ./asinstall
+          sudo cp ${{ github.workspace }}/tests/opt/aerospike.conf /etc/aerospike/aerospike.conf
       - name: Test with pytest
         run: |
           pytest
