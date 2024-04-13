@@ -20,6 +20,9 @@ jobs:
           image: "aerospike/aerospike-server-enterprise"
           ports:
             - 3000:3000
+    env:
+      AEROSPIKE_FLASK_CACHE_TEST_DB_HOST: 127.0.0.1
+      AEROSPIKE_FLASK_CACHE_TEST_DB_PORT: 3000
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
