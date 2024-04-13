@@ -18,6 +18,9 @@ jobs:
     services:
       aerospike:
           image: "aerospike/aerospike-server-enterprise"
+          volumes:
+            - ${{ github.workspace }}/tests/opt:/opt/github
+          options: "--config-file /opt/github/aerospike.conf"
           ports:
             - 3000:3000
     env:
