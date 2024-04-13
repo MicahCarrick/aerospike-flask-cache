@@ -64,6 +64,6 @@ jobs:
       - name: Test with pytest
         run: |
           sleep 1 # wait for network
-          pytest --log-cli-level=DEBUG
+          pytest
       - name: Show test coverage
-        run: pytest --cov src
+        run: pytest --cov
