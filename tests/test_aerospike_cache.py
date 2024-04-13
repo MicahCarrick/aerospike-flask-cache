@@ -15,11 +15,12 @@ import pytest
 
 from aerospike_flask.cache.aerospike import AerospikeCache
 
+
 class MockAerospikeClient:
     """ Mock Aerospike client for testing without live database
     """
     def __init__(self):
-        pass
+        self._cache = {}
 
     def close(self):
         """ Mock close method
@@ -29,6 +30,12 @@ class MockAerospikeClient:
         """ Mock is_connected by always returning True
         """
         return True
+
+    def truncate(self, namespace=None, set=None, nanos=0, policy=None):
+        """ Mock truncate by always returning 0
+        """
+        return 0
+
 
 class CacheTestsBase:
     """Base class for all tests
