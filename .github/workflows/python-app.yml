@@ -64,8 +64,8 @@ jobs:
         run: asd --version
       - name: Test with pytest
         run: |
-          sudo ifconfig
-          echo -e '\x00' | nc -w 2 172.17.0.1 3000 || true
-          echo -e '\x00' | nc -w 2 172.17.0.2 3000 || true
-          echo -e '\x00' | nc -w 2 127.0.0.1 3000 || true
+          #sudo ifconfig
+          #echo -e '\x00' | nc -w 2 172.17.0.1 3000 || true
+          #echo -e '\x00' | nc -w 2 172.17.0.2 3000 || true
+          #echo -e '\x00' | nc -w 2 127.0.0.1 3000 || true
           pytest --log-cli-level=DEBUG
