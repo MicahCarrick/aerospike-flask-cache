@@ -1,6 +1,9 @@
 Aerospike Flask Cache Backend
 =============================
 
+[![Tests](https://github.com/MicahCarrick/aerospike-flask-cache/actions/workflows/python-app.yml/badge.svg?branch=main)](https://github.com/MicahCarrick/aerospike-flask-cache/actions/workflows/python-app.yml)
+
+
 [Aerospike](http://www.aerospike.com) is a low-latency distributed NoSQL database. This module provides a cache backend for [Flask-Caching](https://flask-caching.readthedocs.io/en/latest/index.html), the caching extension for [Flask](https://flask.palletsprojects.com/).
 
 ## Installation
