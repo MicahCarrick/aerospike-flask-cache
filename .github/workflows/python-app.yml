@@ -66,4 +66,6 @@ jobs:
           sleep 1 # wait for network
           pytest
       - name: Show test coverage
-        run: pytest --cov src/aerospike_flask/cache
+        run: |
+          pwd
+          pytest --cov .
