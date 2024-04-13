@@ -56,7 +56,9 @@ jobs:
           sudo systemctl start aerospike
           echo "Show last 50 lines from Aerospike logs"
           sudo journalctl -u aerospike -o cat -n 50
+      - name: Display Aerospike version
+        run: asd --version
       - name: Test with pytest
         run: |
-          asd --version
+          sudo lsof -nP -iTCP -sTCP:LISTEN
           pytest
