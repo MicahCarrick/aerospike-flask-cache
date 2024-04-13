@@ -64,5 +64,8 @@ jobs:
         run: asd --version
       - name: Test with pytest
         run: |
-          while ! nc -z $AEROSPIKE_FLASK_CACHE_TEST_DB_HOST 3000; do sleep 1; done
+          sudo ifconfig
+          echo -e '\x00' | nc -w 2 172.17.0.1 3000 || true
+          echo -e '\x00' | nc -w 2 172.17.0.2 3000 || true
+          echo -e '\x00' | nc -w 2 127.0.0.1 3000 || true
           pytest --log-cli-level=DEBUG
