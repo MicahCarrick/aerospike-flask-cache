@@ -31,7 +31,8 @@ class MockAerospikeClient:
         """
         return True
 
-    def truncate(self, namespace=None, set=None, nanos=0, policy=None):
+    def truncate(self, namespace=None, set_name=None, nanos=0, policy=None):
+        # pylint: disable=unused-argument
         """ Mock truncate by always returning 0
         """
         return 0
@@ -79,11 +80,6 @@ class TestBaseCache(CacheTestsBase):
         v2 = c.get("k2")
         assert v2 is None
 
-    #def test_get_dict(self, c):
-    #    c.set("k", "v")
-    #    d = c.get_dict("k")
-    #    assert "a" in d
-    #    assert "foo" == d["a"]
 
 class TestAerospikeCache(CacheTestsBase):
     """Tests for Aerospike specific functionality
