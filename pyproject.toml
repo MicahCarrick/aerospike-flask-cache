@@ -10,7 +10,7 @@ authors = [
 ]
 description = "Aerospike cache backend for Flask."
 readme = "README.md"
-requires-python = ">=3.8, <=3.12"
+requires-python = ">=3.8, ~=3.12"
 dependencies = [
   "aerospike",
   "Flask-Caching"
