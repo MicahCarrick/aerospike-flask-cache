@@ -27,7 +27,7 @@ class AerospikeCache(BaseCache):
 
     def __init__(self, client, namespace, set_name=None, default_timeout=300):
         BaseCache.__init__(self, default_timeout=default_timeout)
-
+        client.connect()
         self._client = client
         self._namespace = namespace
         self._set = set_name
@@ -53,7 +53,7 @@ class AerospikeCache(BaseCache):
             asconf = {
                 'hosts': config.get("CACHE_AEROSPIKE_HOSTS")
             }
-            kwargs["client"] = aerospike.client(asconf).connect()
+            kwargs["client"] = aerospike.client(asconf)
             logger.debug("Initialized client: %s", kwargs["client"])
         else:
             raise RuntimeError("must specify client or host")
