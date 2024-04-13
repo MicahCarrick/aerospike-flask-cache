@@ -9,8 +9,13 @@ on:
 permissions:
   contents: read
 jobs:
+  services:
+    runs-on: ubuntu-latest
+    container:
+      image: "aerospike/aerospike-server-enterprise"
+      ports:
+        - 3000:3000
   build:
-
     runs-on: ubuntu-latest
     strategy:
       matrix:
