@@ -54,7 +54,8 @@ jobs:
           sudo ./asinstall
           sudo cp ${{ github.workspace }}/tests/opt/aerospike.conf /etc/aerospike/aerospike.conf
           sudo systemctl start aerospike
-          sudo journalctl -u aerospike -o cat -n 25 -f
+          echo "Show last 50 lines from Aerospike logs"
+          sudo journalctl -u aerospike -o cat -n 50
       - name: Test with pytest
         run: |
           asd --version
