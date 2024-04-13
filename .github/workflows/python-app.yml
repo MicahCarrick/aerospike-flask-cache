@@ -47,7 +47,7 @@ jobs:
         with:
           path: aerospike.tgz
           key: aerospike-${{ matrix.aerospike_version }}
-      - name: Install Aerospike ${{ matrix.aerospike_version }}
+      - name: Install and run Aerospike ${{ matrix.aerospike_version }}
         run: |
           tar -xvf aerospike.tgz
           cd aerospike-server-enterprise*
@@ -55,6 +55,7 @@ jobs:
           sudo cp ${{ github.workspace }}/tests/opt/aerospike.conf /etc/aerospike/aerospike.conf
           sudo systemctl start aerospike
           sudo systemctl status aerospike
+          while ! nc -z $AEROSPIKE_FLASK_CACHE_TEST_DB_HOST 3000; do sleep 1; done
       - name: Dump Aerospike log
         run: sudo journalctl -u aerospike -o cat -n 50
       - name: Display Aerospike version
