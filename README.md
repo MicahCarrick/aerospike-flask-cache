@@ -97,12 +97,7 @@ python -c "import aerospike_flask.cache; print(aerospike_flask.cache.__version__
 
 ### Testing
 
-The tests can be run in 2 modes:
-
-1. If the environment variable `AEROSPIKE_FLASK_CACHE_TEST_DB_HOST` is set the tests will be run against a live database.
-2. If the environment variable `AEROSPIKE_FLASK_CACHE_TEST_DB_HOST` is NOT set tests will be run against a mock database.
-
-For example, if Aerospike Database is running locally and listening on port 3000:
+The tests are run against a running Aerospike Database server. For example:
 
 ```bash
 export AEROSPIKE_FLASK_CACHE_TEST_DB_HOST="127.0.0.1"
@@ -110,18 +105,33 @@ export AEROSPIKE_FLASK_CACHE_TEST_DB_PORT="3000"
 
 pytest
 ```
-
 __WARNING: Running tests against a live database will truncate the `testset` set in the `cachetest` namespace__
 
-To instead run the tests with the mock Aerospike Database:
+For local testing, run [Aerospike Database Enterprise in Docker](https://aerospike.com/docs/deploy_guides/docker/). Aerospike Enterprise comes with a free developer license for single-node configuration which can be used for running tests.
+
+The following command will run Aerospike Database Enterprise in a container listening on port `3999`.
 
 ```bash
-unset AEROSPIKE_FLASK_CACHE_TEST_DB_HOST
-
-pytest
+sudo docker run -tid --name aerospike-server-pytest -p 3999:3000 \
+-v "$(pwd)/tests/opt":/opt/aerospike_flask_cache \
+aerospike/aerospike-server-enterprise \
+--config-file /opt/aerospike_flask_cache/aerospike.conf
 ```
 
-See [`examples/aerospike-pytest-docker`](examples/aerospike-pytest-docker/README.md) for an example of installing and configuring Aerospike Enterprise in Docker to be used with pytest.
+__Note__: On Linux distributions with SELinux enabled you may need to append the `:Z` flag to the mount: `"$(pwd)/opt":/opt/aerospike_flask_cache:Z`
+
+The IP address of the container can be obtained from `docker inspect`. Set the `AEROSPIKE_FLASK_CACHE_TEST_DB_HOST` environment variable to this IP address and the port that was mapped in the above Docker command:
+
+```bash
+export AEROSPIKE_FLASK_CACHE_TEST_DB_HOST="$(sudo docker inspect --format='{{.NetworkSettings.IPAddress}}' aerospike-server-pytest)"
+export AEROSPIKE_FLASK_CACHE_TEST_DB_PORT="$(sudo docker inspect --format='{{(index (index .NetworkSettings.Ports "3000/tcp") 0).HostPort}}' aerospike-server-pytest)"
+```
+
+To view test coverage, including the lines not covered, run:
+
+```
+pytest --cov=aerospike_flask.cache tests/ --cov-report term-missing
+```
 
 
 ### Linting
