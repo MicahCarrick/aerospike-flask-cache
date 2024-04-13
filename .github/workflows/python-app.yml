@@ -10,28 +10,21 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         #python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-        python-version: ["3.8"]
-    services:
-      aerospike:
-          image: "aerospike/aerospike-server-enterprise"
-          volumes:
-            - ${{ github.workspace }}/tests/opt:/opt/github
-          ports:
-            - 3000:3000
-          options: "--config-file /opt/github/aerospike.conf"
+        python_version: ["3.8"]
+        aerospike_version: ["6.4.0"]
     env:
       AEROSPIKE_FLASK_CACHE_TEST_DB_HOST: 127.0.0.1
       AEROSPIKE_FLASK_CACHE_TEST_DB_PORT: 3000
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python_version }}
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ matrix.python_version }}
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
       - name: Install dependencies
@@ -46,6 +39,12 @@ jobs:
           flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
           # exit-zero treats all errors as warnings.
           flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=80 --statistics
+      - name: Install Aerospike Database
+        run: |
+          wget -O aerospike.tgz https://enterprise.aerospike.com/enterprise/download/server/${{ matrix.aerospike_version }}/artifact/ubuntu22_amd64
+          tar -xvf aerospike.tgz
+          cd aerospike-server-enterprise-*
+          sudo ./asinstall
       - name: Test with pytest
         run: |
           pytest
