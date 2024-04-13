@@ -17,8 +17,8 @@ jobs:
         python_version: ["3.8"]
         aerospike_version: ["7.0.0"]
     env:
-      AEROSPIKE_FLASK_CACHE_TEST_DB_HOST: 127.0.0.1
-      AEROSPIKE_FLASK_CACHE_TEST_DB_PORT: 3000
+      AEROSPIKE_FLASK_CACHE_TEST_DB_HOST: "172.17.0.1"
+      AEROSPIKE_FLASK_CACHE_TEST_DB_PORT: "3000"
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python_version }}
@@ -54,12 +54,12 @@ jobs:
           sudo ./asinstall
           sudo cp ${{ github.workspace }}/tests/opt/aerospike.conf /etc/aerospike/aerospike.conf
           sudo systemctl start aerospike
-          echo "Show last 50 lines from Aerospike logs"
-          sudo journalctl -u aerospike -o cat -n 50
+          sudo systemctl status aerospike
+      - name: Dump Aerospike log
+        run: sudo journalctl -u aerospike -o cat -n 50
       - name: Display Aerospike version
         run: asd --version
       - name: Test with pytest
         run: |
           sudo ifconfig
-          echo -e '\x00' | nc -w 5 127.0.0.1 3000
           pytest
