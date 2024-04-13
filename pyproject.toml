@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aerospike-flask-cache"
+dynamic = ["version"]
+authors = [
+  { name="Micah Carrick", email="micahcarrick@gmail.com" },
+]
+description = "Aerospike cache backend for Flask."
+readme = "README.md"
+requires-python = ">=3.8, <=3.12"
+dependencies = [
+  "aerospike",
+  "Flask-Caching"
+]
+
+[tool.hatch.version]
+path = "src/aerospike_flask/cache/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+    packages = ["src/aerospike_flask"]
+
+[tool.pytest.ini_options]
