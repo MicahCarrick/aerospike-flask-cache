@@ -1,6 +1,6 @@
 # This workflow will install Python dependencies, run tests and lint with flake8
 
-name: Python application
+name: Tests
 on:
   push:
     branches: [ "main" ]
@@ -17,7 +17,7 @@ jobs:
         python_version: ["3.8"]
         aerospike_version: ["7.0.0"]
     env:
-      AEROSPIKE_FLASK_CACHE_TEST_DB_HOST: "172.17.0.1"
+      AEROSPIKE_FLASK_CACHE_TEST_DB_HOST: "127.0.0.1"
       AEROSPIKE_FLASK_CACHE_TEST_DB_PORT: "3000"
     steps:
       - uses: actions/checkout@v4
