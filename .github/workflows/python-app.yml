@@ -54,7 +54,8 @@ jobs:
           sudo ./asinstall
           sudo cp ${{ github.workspace }}/tests/opt/aerospike.conf /etc/aerospike/aerospike.conf
           sudo systemctl start aerospike
-          sudo journalctl -u aerospike -o cat -n 10
+          sudo journalctl -u aerospike -o cat -n 25 -f
       - name: Test with pytest
         run: |
+          asd --version
           pytest
