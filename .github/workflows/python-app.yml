@@ -9,14 +9,12 @@ on:
 permissions:
   contents: read
 jobs:
-  services:
+  build:
     runs-on: ubuntu-latest
     container:
       image: "aerospike/aerospike-server-enterprise"
       ports:
         - 3000:3000
-  build:
-    runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
