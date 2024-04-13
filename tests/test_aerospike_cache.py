@@ -12,8 +12,11 @@ from os import getenv
 from time import sleep
 
 import pytest
+import aerospike
 
 from aerospike_flask.cache.aerospike import AerospikeCache
+
+aerospike.set_log_level(aerospike.LOG_LEVEL_DEBUG)
 
 
 class MockAerospikeClient:

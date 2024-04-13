@@ -68,4 +68,5 @@ jobs:
           #echo -e '\x00' | nc -w 2 172.17.0.1 3000 || true
           #echo -e '\x00' | nc -w 2 172.17.0.2 3000 || true
           #echo -e '\x00' | nc -w 2 127.0.0.1 3000 || true
+          sleep 2
           pytest --log-cli-level=DEBUG
