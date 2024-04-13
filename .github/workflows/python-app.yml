@@ -39,20 +39,22 @@ jobs:
           flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
           # exit-zero treats all errors as warnings.
           flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=80 --statistics
-      - name: Download Aerospike Database package
+      - name: Download Aerospike ${{ matrix.aerospike_version }}
         run: |
           wget -q -O aerospike.tgz https://enterprise.aerospike.com/enterprise/download/server/${{ matrix.aerospike_version }}/artifact/ubuntu22_amd64
-      - name: Cache Aerospike Database package
+      - name: Cache Aerospike ${{ matrix.aerospike_version }}
         uses: actions/cache@v3
         with:
           path: aerospike.tgz
           key: aerospike-${{ matrix.aerospike_version }}
-      - name: Install Aerospike Database
+      - name: Install Aerospike ${{ matrix.aerospike_version }}
         run: |
           tar -xvf aerospike.tgz
           cd aerospike-server-enterprise*
           sudo ./asinstall
           sudo cp ${{ github.workspace }}/tests/opt/aerospike.conf /etc/aerospike/aerospike.conf
+          sudo systemctl start aerospike
+          sudo journalctl -u aerospike -o cat -n 10
       - name: Test with pytest
         run: |
           pytest
