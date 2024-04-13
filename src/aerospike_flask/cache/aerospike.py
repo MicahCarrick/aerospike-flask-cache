@@ -15,6 +15,7 @@ from flask_caching.backends.base import BaseCache
 
 logger = logging.getLogger('aerospike_flask_cache')
 
+
 class AerospikeCache(BaseCache):
     """Cache backend using Aerospike Database as a distributed cache
 
@@ -57,7 +58,7 @@ class AerospikeCache(BaseCache):
         else:
             raise RuntimeError("must specify client or host")
 
-        if not 'CACHE_AEROSPIKE_NAMESPACE' in config:
+        if 'CACHE_AEROSPIKE_NAMESPACE' not in config:
             msg = "CACHE_AEROSPIKE_NAMESPACE is required"
             raise RuntimeError(msg)
 
@@ -80,8 +81,8 @@ class AerospikeCache(BaseCache):
         self.close_client()
 
     def close_client(self):
-        """Close client connections if the client is instantiated and connected.
-        Called by `atexit` and/or when garbage collected.
+        """Close client connections if the client is instantiated and
+        connected. Called by `atexit` and/or when garbage collected.
 
         :returns: Returns ``True`` if the client connections were closed and
                  ``False`` if the client was not instantiated or was not
