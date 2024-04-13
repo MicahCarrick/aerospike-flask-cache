@@ -9,18 +9,17 @@ on:
 permissions:
   contents: read
 jobs:
-  aerospike:
-    runs-on: ubuntu-latest
-    container:
-      image: "aerospike/aerospike-server-enterprise"
-      ports:
-        - 3000:3000
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         #python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
         python-version: ["3.8"]
+    services:
+      aerospike:
+          image: "aerospike/aerospike-server-enterprise"
+          ports:
+            - 3000:3000
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
