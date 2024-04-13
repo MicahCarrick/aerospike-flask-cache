@@ -17,8 +17,7 @@ jobs:
         python_version: ["3.8"]
         aerospike_version: ["7.0.0"]
     env:
-      #AEROSPIKE_FLASK_CACHE_TEST_DB_HOST: "172.17.0.1"
-      AEROSPIKE_FLASK_CACHE_TEST_DB_HOST: "127.0.0.1"
+      AEROSPIKE_FLASK_CACHE_TEST_DB_HOST: "172.17.0.1"
       AEROSPIKE_FLASK_CACHE_TEST_DB_PORT: "3000"
     steps:
       - uses: actions/checkout@v4
@@ -57,9 +56,13 @@ jobs:
           sudo systemctl start aerospike
           sudo systemctl status aerospike
           while ! nc -z $AEROSPIKE_FLASK_CACHE_TEST_DB_HOST 3000; do sleep 1; done
-      - name: Dump Aerospike log
+      - name: Show Aerospike configuration
+        run: sudo cat /etc/aerospike/aerospike.conf
+      - name: Show last 50 Aerospike log lines
         run: sudo journalctl -u aerospike -o cat -n 50
       - name: Display Aerospike version
         run: asd --version
       - name: Test with pytest
-        run: pytest --log-cli-level=DEBUG
+        run: |
+          while ! nc -z $AEROSPIKE_FLASK_CACHE_TEST_DB_HOST 3000; do sleep 1; done
+          pytest --log-cli-level=DEBUG
