@@ -60,5 +60,6 @@ jobs:
         run: asd --version
       - name: Test with pytest
         run: |
-          sudo lsof -nP -iTCP -sTCP:LISTEN
+          sudo ifconfig
+          echo -e '\x00' | nc -w 5 127.0.0.1 3000
           pytest
