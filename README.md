@@ -1,6 +1,7 @@
 Aerospike Flask Cache Backend
 =============================
 
+
 [Aerospike](http://www.aerospike.com) is a low-latency distributed NoSQL database. This module provides a cache backend for [Flask-Caching](https://flask-caching.readthedocs.io/en/latest/index.html), the caching extension for [Flask](https://flask.palletsprojects.com/).
 
 ## Installation
@@ -94,6 +95,8 @@ python -c "import aerospike_flask.cache; print(aerospike_flask.cache.__version__
 
 ### Testing
 
+Tests are run with a Github Action on push or pull request to `dev` and `main` branches. Tests should pass locally first.
+
 The tests are run against a running Aerospike Database server. For example:
 
 ```bash
@@ -133,7 +136,7 @@ pytest --cov=aerospike_flask.cache tests/ --cov-report term-missing
 
 ### Linting
 
-The Github Actions will run the `flake8` linter. Run it locally first to ensure the changes will pass:
+Source code is checked with a Github Action using the `flake8` linter. Run it locally first to ensure the changes will pass:
 
 ```bash
 flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
@@ -142,26 +145,28 @@ flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=80 --stati
 
 ### Building
 
-Build Python packages (sdist and wheel) using hatch:
+Packages are built with a Github Action on push or pull request into the `dev` and `main` branches.
+
+Manually build Python packages (`sdist` and `wheel`) using hatch:
 
 ```
 hatch build
 ```
 
-### Running Github Actions
+### Publishing to TestPyPI
 
-Install `act` Github CLI extension:
+Packages are published to TestPyPI with a Github Action when pushed or merged into the `dev` branch.
+
+### Publishing to Github and PyPI
+
+Packages are published to PyPI with a Github Action when version tags are pushed.
+
+To push a version tag:
 
 ```
-gh extension install https://github.com/nektos/gh-act
+VERSION="$(python -c 'import aerospike_flask.cache; print(aerospike_flask.cache.__version__)')"; git tag -a -m $VERSION $VERSION
+git push --tags
 ```
-
-Run the `push` Github Action:
-
-```
-gh act -P ubuntu-latest=catthehacker/ubuntu:act-22.04 -W .github/workflows/build.yml
-```
-
 
 ## Troubleshooting
 
