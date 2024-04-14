@@ -143,6 +143,29 @@ flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
 flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=80 --statistics
 ```
 
+### Building
+
+Build Python packages (sdist and wheel) using hatch:
+
+```
+hatch build
+```
+
+### Running Github Actions
+
+Install `act` Github CLI extension:
+
+```
+gh extension install https://github.com/nektos/gh-act
+```
+
+Run the `push` Github Action:
+
+```
+gh act -P ubuntu-latest=catthehacker/ubuntu:act-22.04 -W .github/workflows/build.yml
+```
+
+
 ## Troubleshooting
 
 ### Namespace supervisor (nsup) is disabled

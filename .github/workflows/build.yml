@@ -1,0 +1,32 @@
+# This workflow will build Python packages and upload to PyPI
+
+name: Build
+on:
+  push:
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3"
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install hatch
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Build packages
+        run: hatch build
+      - name: Upload Github artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          path: dist/
