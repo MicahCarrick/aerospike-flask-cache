@@ -68,6 +68,18 @@ class TestBaseCache(CacheTestsBase):
         assert c.set("k1", "v2")
         assert c.get("k1") == "v2"
 
+    def test_set_many(self, c):
+        """set_many replaces all values in mapping and returns list of keys
+        successfully set
+        """
+        c.set("k1", "value_to_replace")
+        r = c.set_many({"k1": "v1", "k2": "v2"})
+        assert isinstance(r, list)
+        assert "k1" in r
+        assert c.get("k1") == "v1"
+        assert "k2" in r
+        assert c.get("k2") == "v2"
+
     def test_get(self, c):
         """get method returns value or None if not found
         """

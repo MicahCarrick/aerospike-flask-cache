@@ -42,7 +42,11 @@ class AerospikeCache(BaseCache):
         # pylint: disable=import-outside-toplevel
         try:
             import aerospike
+            import aerospike_helpers.batch.records as aerospike_batch
+            import aerospike_helpers.operations.operations as aerospike_ops
             cls._aerospike = aerospike
+            cls._aerospike_batch = aerospike_batch
+            cls._aerospike_ops = aerospike_ops
             logger.debug("Aerospike client version %s", aerospike.__version__)
         except ImportError as err:
             raise RuntimeError("aerospike module not found") from err
@@ -345,11 +349,27 @@ class AerospikeCache(BaseCache):
                         specified, it uses the default timeout). A timeout of
                         0 indicates that the cache never expires.
         :returns: A list containing all keys successfully set
-        :rtype: boolean
+        :rtype: list
         """
-        # TODO: not implemented
-        set_keys = []
-        for key, value in mapping.items():
-            if self.set(key, value, timeout):
-                set_keys.append(key)
-        return set_keys
+        key_tuples = [(self._namespace, self._set, k) for k in mapping.keys()]
+        batch = []
+
+        for k in key_tuples:
+            batch.append(
+                self._aerospike_batch.Write(
+                    key=k,
+                    ops=[
+                        self._aerospike_ops.write(self._bin_name, mapping[k[2]])
+                    ]
+                )
+            )
+
+        batch_records = self._aerospike_batch.BatchRecords(batch)
+        self._client.batch_write(batch_records)
+
+        r_list = []
+        for br in batch_records.batch_records:
+            if br.result == 0:
+                r_list.append(br.record[0][2])
+
+        return r_list
