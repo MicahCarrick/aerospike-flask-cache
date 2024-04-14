@@ -230,8 +230,10 @@ class AerospikeCache(BaseCache):
         for record in records:
             bins = record[2]
             if bins is None:
+                logger.debug("Cache miss on key: %s", record[0][2])
                 r_val.append(None)
             else:
+                logger.debug("Cache hit on key: %s", record[0][2])
                 r_val.append(bins[self._bin_name])
 
         return r_val
