@@ -46,18 +46,6 @@ class AerospikeCache(BaseCache):
         except ImportError as err:
             raise RuntimeError("aerospike module not found") from err
 
-        # instantiated client takes precedence over hosts array
-        if "CACHE_AEROSPIKE_CLIENT" in config:
-            kwargs["client"] = config.get("CACHE_AEROSPIKE_CLIENT", None)
-        elif "CACHE_AEROSPIKE_HOSTS" in config:
-            asconf = {
-                'hosts': config.get("CACHE_AEROSPIKE_HOSTS")
-            }
-            kwargs["client"] = aerospike.client(asconf)
-            logger.debug("Initialized client: %s", kwargs["client"])
-        else:
-            raise RuntimeError("must specify client or host")
-
         if 'CACHE_AEROSPIKE_NAMESPACE' not in config:
             msg = "CACHE_AEROSPIKE_NAMESPACE is required"
             raise RuntimeError(msg)
@@ -73,29 +61,24 @@ class AerospikeCache(BaseCache):
             msg = "CACHE_AEROSPIKE_SET must be less than 64 characters"
             raise RuntimeError(msg)
 
+        # instantiated client takes precedence over hosts array
+        if "CACHE_AEROSPIKE_CLIENT" in config:
+            kwargs["client"] = config.get("CACHE_AEROSPIKE_CLIENT", None)
+        elif "CACHE_AEROSPIKE_HOSTS" in config:
+            asconf = {
+                'hosts': config.get("CACHE_AEROSPIKE_HOSTS")
+            }
+            kwargs["client"] = aerospike.client(asconf)
+            logger.debug("Initialized client: %s", kwargs["client"])
+        else:
+            raise RuntimeError("must specify client or host")
+
         return cls(*args, **kwargs)
 
     def __del__(self):
         """ Close client connections when garbage collected.
         """
         self.close_client()
-
-    def close_client(self):
-        """Close client connections if the client is instantiated and
-        connected. Called by `atexit` and/or when garbage collected.
-
-        :returns: Returns ``True`` if the client connections were closed and
-                 ``False`` if the client was not instantiated or was not
-                 connected.
-        :rtype: boolean
-        """
-        if self._client is not None and self._client.is_connected():
-            logger.debug("closing Aerospike client: %s", self._client)
-            self._client.close()
-            self._client = None
-            return True
-
-        return False
 
     def add(self, key, value, timeout=None):
         """Works like :meth:`set` but does not overwrite the values of already
@@ -124,6 +107,90 @@ class AerospikeCache(BaseCache):
 
         return False
 
+    def close_client(self):
+        """Close client connections if the client is instantiated and
+        connected. Called by `atexit` and/or when garbage collected.
+
+        :returns: Returns ``True`` if the client connections were closed and
+                 ``False`` if the client was not instantiated or was not
+                 connected.
+        :rtype: boolean
+        """
+        if self.is_connected():
+            logger.debug("closing Aerospike client: %s", self._client)
+            self._client.close()
+            self._client = None
+            return True
+
+        return False
+
+    def dec(self, key: str, delta=1):
+        """Decrements the value of a key by `delta`.  If the key does
+        not yet exist it is initialized with `-delta`.
+
+        For supporting caches this is an atomic operation.
+
+        :param key: the key to increment.
+        :param delta: the delta to subtract.
+        :returns: The new value or `None` for backend errors.
+        """
+        # TODO: not implemented
+        value = (self.get(key) or 0) - delta
+        return value if self.set(key, value) else None
+
+    def delete(self, key):
+        """Delete `key` from the cache.
+
+        :param key: the key to delete.
+        :returns: Whether the key existed and has been deleted.
+        :rtype: boolean
+        """
+        # TODO: not implemented
+        return True
+
+    def delete_many(self, *keys):
+        """Deletes multiple keys at once.
+
+        :param keys: The function accepts multiple keys as positional
+                     arguments.
+        :returns: A list containing all successfully deleted keys
+        :rtype: boolean
+        """
+        # TODO: not implemented
+        deleted_keys = []
+        for key in keys:
+            if self.delete(key):
+                deleted_keys.append(key)
+        return deleted_keys
+
+    def has(self, key):
+        """Checks if a key exists in the cache without returning it. This is a
+        cheap operation that bypasses loading the actual data on the backend.
+
+        :param key: the key to check
+        """
+        # TODO: not implemented
+        raise NotImplementedError(
+            "%s doesn't have an efficient implementation of `has`. That "
+            "means it is impossible to check whether a key exists without "
+            "fully loading the key's data. Consider using `self.get` "
+            "explicitly if you don't care about performance."
+        )
+
+    def inc(self, key, delta=1):
+        """Increments the value of a key by `delta`.  If the key does
+        not yet exist it is initialized with `delta`.
+
+        For supporting caches this is an atomic operation.
+
+        :param key: the key to increment.
+        :param delta: the delta to add.
+        :returns: The new value or ``None`` for backend errors.
+        """
+        # TODO: not implemented
+        value = (self.get(key) or 0) + delta
+        return value if self.set(key, value) else None
+
     def get(self, key):
         """Look up key in the cache and return the Aerospike bin value.
 
@@ -140,6 +207,18 @@ class AerospikeCache(BaseCache):
             logger.debug("Cache miss on key: %s", key)
             return None
 
+    def is_connected(self):
+        """Check if the Aerospike client is initialized and connected to the
+        database.
+
+        :returns: ``True`` if the Aerospike client is connected
+        :rtype: boolean
+        """
+        if self._client is not None and self._client.is_connected():
+            return True
+
+        return False
+
     def get_metadata(self, key):
         """Look up key in the cache and return the Aerospike record metadata.
 
@@ -153,16 +232,6 @@ class AerospikeCache(BaseCache):
             return r_meta
         except self._aerospike.exception.RecordNotFound:
             return None
-
-    def delete(self, key):
-        """Delete `key` from the cache.
-
-        :param key: the key to delete.
-        :returns: Whether the key existed and has been deleted.
-        :rtype: boolean
-        """
-        # TODO: not implemented
-        return True
 
     def get_many(self, *keys):
         """Returns a list of values for the given keys.
@@ -246,60 +315,3 @@ class AerospikeCache(BaseCache):
             if self.set(key, value, timeout):
                 set_keys.append(key)
         return set_keys
-
-    def delete_many(self, *keys):
-        """Deletes multiple keys at once.
-
-        :param keys: The function accepts multiple keys as positional
-                     arguments.
-        :returns: A list containing all successfully deleted keys
-        :rtype: boolean
-        """
-        # TODO: not implemented
-        deleted_keys = []
-        for key in keys:
-            if self.delete(key):
-                deleted_keys.append(key)
-        return deleted_keys
-
-    def has(self, key):
-        """Checks if a key exists in the cache without returning it. This is a
-        cheap operation that bypasses loading the actual data on the backend.
-
-        :param key: the key to check
-        """
-        # TODO: not implemented
-        raise NotImplementedError(
-            "%s doesn't have an efficient implementation of `has`. That "
-            "means it is impossible to check whether a key exists without "
-            "fully loading the key's data. Consider using `self.get` "
-            "explicitly if you don't care about performance."
-        )
-
-    def inc(self, key, delta=1):
-        """Increments the value of a key by `delta`.  If the key does
-        not yet exist it is initialized with `delta`.
-
-        For supporting caches this is an atomic operation.
-
-        :param key: the key to increment.
-        :param delta: the delta to add.
-        :returns: The new value or ``None`` for backend errors.
-        """
-        # TODO: not implemented
-        value = (self.get(key) or 0) + delta
-        return value if self.set(key, value) else None
-
-    def dec(self, key: str, delta=1):
-        """Decrements the value of a key by `delta`.  If the key does
-        not yet exist it is initialized with `-delta`.
-
-        For supporting caches this is an atomic operation.
-
-        :param key: the key to increment.
-        :param delta: the delta to subtract.
-        :returns: The new value or `None` for backend errors.
-        """
-        # TODO: not implemented
-        value = (self.get(key) or 0) - delta
-        return value if self.set(key, value) else None

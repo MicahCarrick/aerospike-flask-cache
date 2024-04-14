@@ -13,29 +13,20 @@ from time import sleep
 
 import pytest
 
+import aerospike
+
+from aerospike_flask import cache
 from aerospike_flask.cache.aerospike import AerospikeCache
 
 
-class MockAerospikeClient:
-    """ Mock Aerospike client for testing without a live database
+class TestModule:
+    """Tests for Python module functionality
     """
-    def __init__(self):
-        self._cache = {}
-
-    def close(self):
-        """ Mock close method
+    def test_version(self):
+        """get version returns version as a semver string
         """
-
-    def is_connected(self):
-        """ Mock is_connected by always returning True
-        """
-        return True
-
-    def truncate(self, namespace=None, set_name=None, nanos=0, policy=None):
-        # pylint: disable=unused-argument
-        """ Mock truncate by always returning 0
-        """
-        return 0
+        assert isinstance(cache.get_version(), str)
+        assert cache.get_version() == cache.__version__
 
 
 class CacheTestsBase:
@@ -43,36 +34,33 @@ class CacheTestsBase:
     """
     @pytest.fixture
     def c(self):
-        """Return a cache instance."""
-        if getenv("AEROSPIKE_FLASK_CACHE_TEST_DB_HOST") is not None:
-            config = {
-                'CACHE_AEROSPIKE_HOSTS': [(
-                    getenv("AEROSPIKE_FLASK_CACHE_TEST_DB_HOST"),
-                    int(getenv("AEROSPIKE_FLASK_CACHE_TEST_DB_PORT", "3000")),
-                    getenv("AEROSPIKE_FLASK_CACHE_TEST_DB_TLS_NAME")
-                )],
-                'CACHE_AEROSPIKE_NAMESPACE': "cachetest",
-                'CACHE_AEROSPIKE_SET': "testset"
-            }
-            c = AerospikeCache.factory(None, config, [], {})
-            c.clear()
-        else:
-            c = AerospikeCache(MockAerospikeClient(), "testcache", "testset")
-            c.clear()
+        """return a cache instance
+        """
+        config = {
+            'CACHE_AEROSPIKE_HOSTS': [(
+                getenv("AEROSPIKE_FLASK_CACHE_TEST_DB_HOST"),
+                int(getenv("AEROSPIKE_FLASK_CACHE_TEST_DB_PORT", "3000")),
+                getenv("AEROSPIKE_FLASK_CACHE_TEST_DB_TLS_NAME")
+            )],
+            'CACHE_AEROSPIKE_NAMESPACE': "cachetest",
+            'CACHE_AEROSPIKE_SET': "testset"
+        }
+        c = AerospikeCache.factory(None, config, [], {})
+        c.clear()
         yield c
 
 
 class TestBaseCache(CacheTestsBase):
-    """ Tests for methods defined in flask_caching.backends.base.BaseCache
+    """Tests for methods defined in flask_caching.backends.base.BaseCache
     (cachelib.base.BaseCache)
     """
     def test_set(self, c):
-        """ set method persists the value
+        """set method persists the value
         """
         assert c.set("k1", "v1")
 
     def test_get(self, c):
-        """ get method returns value or None if not found
+        """get method returns value or None if not found
         """
         assert c.set("k1", "v1")
         v1 = c.get("k1")
@@ -84,10 +72,67 @@ class TestBaseCache(CacheTestsBase):
 class TestAerospikeCache(CacheTestsBase):
     """Tests for Aerospike specific functionality
     """
-    def test_set_with_ttl(self, c):
-        """ get with timeout should set Aerospike TTL
+    def test_initialize_with_client(self):
+        """cache can be initialized with existing `aerospike.client` object
         """
-        # TODO: mock a ForbiddenError (nsup not enabled)?
+        # Note: initializing with just the host string is already covered by
+        # the fixture in CacheTestsBase used in most other test cases
+        asconfig = [(
+                getenv("AEROSPIKE_FLASK_CACHE_TEST_DB_HOST"),
+                int(getenv("AEROSPIKE_FLASK_CACHE_TEST_DB_PORT", "3000")),
+                getenv("AEROSPIKE_FLASK_CACHE_TEST_DB_TLS_NAME")
+            )]
+        # pylint: disable=no-member
+        client = aerospike.client({'hosts': asconfig}).connect()
+        config = {
+            'CACHE_AEROSPIKE_CLIENT': client,
+            'CACHE_AEROSPIKE_NAMESPACE': "cachetest",
+        }
+        c = AerospikeCache.factory(None, config, [], {})
+        c.close_client()
+        c = None
+
+    def test_invalid_config(self):
+        """missing required configuration raises runtime exceptions
+        """
+        # missing CACHE_AEROSPIKE_HOSTS and CACHE_AEROSPIKE_CLIENT
+        with pytest.raises(RuntimeError):
+            config = {
+                'CACHE_AEROSPIKE_NAMESPACE': 'foo',
+                'CACHE_AEROSPIKE_SET': 'foo'
+            }
+            _ = AerospikeCache.factory(None, config, [], {})
+
+        # missing CACHE_AEROSPIKE_NAMESPACE
+        with pytest.raises(RuntimeError):
+            config = {
+                'CACHE_AEROSPIKE_HOSTS': [('foo.bar', 3000)]
+            }
+            _ = AerospikeCache.factory(None, config, [], {})
+
+        # CACHE_AEROSPIKE_NAMESPACE exceeds 31 characters
+        with pytest.raises(RuntimeError):
+            config = {
+                'CACHE_AEROSPIKE_HOSTS': [('foo.bar', 3000)],
+                'CACHE_AEROSPIKE_NAMESPACE': 'x' * 32
+            }
+            _ = AerospikeCache.factory(None, config, [], {})
+
+        # CACHE_AEROSPIKE_NAMESPACE exceeds 31 characters
+        with pytest.raises(RuntimeError):
+            config = {
+                'CACHE_AEROSPIKE_HOSTS': [('foo.bar', 3000)],
+                'CACHE_AEROSPIKE_NAMESPACE': 'foo',
+                'CACHE_AEROSPIKE_SET': 'x' * 64
+            }
+            _ = AerospikeCache.factory(None, config, [], {})
+
+    def test_set_with_ttl(self, c, monkeypatch):
+        """get with timeout should set Aerospike TTL
+        """
+        # pylint: disable=missing-class-docstring,missing-function-docstring
+        # pylint: disable=no-member,too-few-public-methods
+
         # 1 second TTL
         c.set("k1", "v1", timeout=1)
         assert c.get("k1") == "v1"
@@ -100,3 +145,54 @@ class TestAerospikeCache(CacheTestsBase):
         c.set("k2", "v2", timeout=0)
         meta = c.get_metadata("k2")
         assert meta['ttl'] == -1 & 0xffffffff
+
+        # ForbiddenError is caught and returns False
+        class MockForbiddenErrorClient():
+            def put(self, key, bins=None, meta=None, policy=None):
+                raise aerospike.exception.ForbiddenError
+
+        monkeypatch.setattr(c, '_client', MockForbiddenErrorClient)
+        assert c.set("k1", "v1") is False
+
+        # AerospikeError is caught and returns False
+        class MockAerospikeErrorClient():
+            def put(self, key, bins=None, meta=None, policy=None):
+                raise aerospike.exception.AerospikeError
+
+        monkeypatch.setattr(c, '_client', MockAerospikeErrorClient)
+        assert c.set("k1", "v1") is False
+
+        # Unknown exceptions are not caught
+        # pylint: disable=broad-exception-raised
+        class MockExceptionClient():
+            def put(self, key, bins=None, meta=None, policy=None):
+                raise Exception
+        monkeypatch.setattr(c, '_client', MockExceptionClient)
+        with pytest.raises(Exception):
+            c.set("k1", "v1")
+
+    def test_get_metadata(self, c):
+        """get metadata should return metadata object or ``None`` if the
+        record is not found
+        """
+        c.set("k1", "v1")
+        meta = c.get_metadata("k1")
+        assert 'ttl' in meta
+        assert 'gen' in meta
+
+        assert c.get_metadata("foo") is None
+
+    def test_client_cleanup(self, c):
+        """finalize method should close Aerospike client connections
+        """
+        # pylint: disable=unnecessary-dunder-call
+        assert c.is_connected() is True
+        c.__del__()
+        assert c.is_connected() is False
+
+    def test_client_double_close(self, c):
+        """closing Aerospike client connections that have already been closed
+        should return ``False``
+        """
+        assert c.close_client() is True
+        assert c.close_client() is False
