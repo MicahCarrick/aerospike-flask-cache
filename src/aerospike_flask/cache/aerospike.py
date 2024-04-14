@@ -7,6 +7,7 @@
     :copyright: (c) 2024 by Micah Carrick.
     :license: BSD, see LICENSE for more details.
 """
+# pylint: disable=no-member
 
 import logging
 import atexit
@@ -38,7 +39,7 @@ class AerospikeCache(BaseCache):
 
     @classmethod
     def factory(cls, app, config, args, kwargs):
-        # pylint: disable=import-outside-toplevel,no-member
+        # pylint: disable=import-outside-toplevel
         try:
             import aerospike
             cls._aerospike = aerospike
@@ -93,8 +94,7 @@ class AerospikeCache(BaseCache):
                   existing keys.
         :rtype: boolean
         """
-        # TODO: not implemented
-        return True
+        return self._put(key, value, timeout, False)
 
     def clear(self):
         """Clears the cache using the Aerospike 'truncate' info command.
@@ -197,7 +197,6 @@ class AerospikeCache(BaseCache):
         :param key: the key to be looked up.
         :returns: The value if it exists and is readable, else ``None``.
         """
-        # pylint: disable=no-member
         try:
             as_key = (self._namespace, self._set, key)
             (_, _, r_value) = self._client.get(as_key)
@@ -225,7 +224,6 @@ class AerospikeCache(BaseCache):
         :param key: the key to be looked up.
         :returns: The metadata if the record exists, else ``None``.
         """
-        # pylint: disable=no-member
         try:
             as_key = (self._namespace, self._set, key)
             (_, r_meta, _) = self._client.get(as_key)
@@ -260,6 +258,58 @@ class AerospikeCache(BaseCache):
         # TODO: not implemented
         return dict(zip(keys, self.get_many(*keys)))  # noqa: B905
 
+    def _get_ttl_from_timeout(self, timeout):
+        """Get Aerospike TTL from a per-transaction timeout value.
+
+        :param timeout: the cache timeout for the key in seconds (if not
+                        specified, it uses the default timeout). A timeout of
+                        0 indicates that the cache never expires.
+        :returns: timeout value as an Aerospike TTL
+        :rtype: integer
+        """
+        if timeout is None:
+            return self.default_timeout
+
+        if timeout == 0:
+            return self._aerospike.TTL_NEVER_EXPIRE
+
+        return timeout
+
+    def _put(self, key, value, timeout=None, replace=True):
+
+        policy = {}
+        meta = {}
+        ttl = self._get_ttl_from_timeout(timeout)
+        meta['ttl'] = ttl
+
+        if timeout != 0:
+            policy['ttl'] = ttl
+
+        if replace:
+            policy['exists'] = self._aerospike.POLICY_EXISTS_CREATE_OR_REPLACE
+        else:
+            policy['exists'] = self._aerospike.POLICY_EXISTS_CREATE
+
+        as_key = (self._namespace, self._set, key)
+
+        try:
+            self._client.put(as_key, {self._bin_name: value}, meta, policy)
+        except self._aerospike.exception.ForbiddenError as err:
+            msg = f"Failed to set TTL (timeout={timeout}). " + \
+                  "Aerospike namespace supervisor (nsup) is disabled. " + \
+                  f"Error {err.code}: {err.msg}"
+            logger.error(msg)
+            return False
+        except self._aerospike.exception.RecordNotFound:
+            if replace:
+                logger.error("Error %s: %s", err.code, err.msg)
+            return True
+        except self._aerospike.exception.AerospikeError as err:
+            logger.error("Error %s: %s", err.code, err.msg)
+            return False
+
+        return True
+
     def set(self, key, value, timeout=None):
         """Add a new key/value to the cache (overwrites value, if key already
         exists in the cache).
@@ -273,31 +323,7 @@ class AerospikeCache(BaseCache):
                   errors.
         :rtype: boolean
         """
-        # pylint: disable=no-member
-        if timeout is None:
-            timeout = self.default_timeout
-        if timeout == 0:
-            meta = {'ttl': self._aerospike.TTL_NEVER_EXPIRE}
-            policy = {}
-        else:
-            meta = {'ttl': timeout}
-            policy = {'ttl': timeout}
-
-        as_key = (self._namespace, self._set, key)
-
-        try:
-            self._client.put(as_key, {self._bin_name: value}, meta, policy)
-        except self._aerospike.exception.ForbiddenError as err:
-            msg = f"Failed to set TTL (timeout={timeout}). " + \
-                  "Aerospike namespace supervisor (nsup) is disabled. " + \
-                  f"Error {err.code}: {err.msg}"
-            logger.error(msg)
-            return False
-        except self._aerospike.exception.AerospikeError as err:
-            logger.error("Error %s: %s", err.code, err.msg)
-            return False
-
-        return True
+        return self._put(key, value, timeout, True)
 
     def set_many(self, mapping, timeout=None):
         """Sets multiple keys and values from a mapping.

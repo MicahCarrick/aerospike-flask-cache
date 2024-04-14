@@ -54,10 +54,19 @@ class TestBaseCache(CacheTestsBase):
     """Tests for methods defined in flask_caching.backends.base.BaseCache
     (cachelib.base.BaseCache)
     """
+    def test_add(self, c):
+        """add method does not replace the value if it exists
+        """
+        assert c.add("k1", "v1")
+        assert c.add("k1", "v2") is False
+        assert c.get("k1") == "v1"
+
     def test_set(self, c):
-        """set method persists the value
+        """set method always replaces the value
         """
         assert c.set("k1", "v1")
+        assert c.set("k1", "v2")
+        assert c.get("k1") == "v2"
 
     def test_get(self, c):
         """get method returns value or None if not found
