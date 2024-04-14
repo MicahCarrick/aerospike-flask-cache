@@ -47,6 +47,7 @@ class CacheTestsBase:
         }
         c = AerospikeCache.factory(None, config, [], {})
         c.clear()
+        sleep(1)  # allow time for truncate
         yield c
 
 
@@ -91,6 +92,14 @@ class TestBaseCache(CacheTestsBase):
         assert values == ["v1", "v2"]
         values = c.get_many("k2", "foo", "k1")
         assert values == ["v2", None, "v1"]
+
+    def test_has(self, c):
+        """has returns ``True`` when the key exists and ``False`` when it
+        does not.
+        """
+        c.set("k1", "v1")
+        assert c.has("k1") is True
+        assert c.has("k2") is False
 
     def test_set(self, c):
         """set method always replaces the value

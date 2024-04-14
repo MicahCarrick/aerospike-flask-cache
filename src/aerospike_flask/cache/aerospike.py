@@ -106,6 +106,8 @@ class AerospikeCache(BaseCache):
         :returns: Whether the cache has been cleared.
         :rtype: boolean
         """
+        logger.debug("Truncating %s.%s", self._namespace, self._set)
+        # Note: truncate is async
         if self._client.truncate(self._namespace, self._set, 0) != 0:
             return False
 
@@ -152,7 +154,9 @@ class AerospikeCache(BaseCache):
         as_key = (self._namespace, self._set, key)
 
         try:
-            (key, meta) = self._client.exists(as_key)
+            (_, meta) = self._client.exists(as_key)
+            if meta is None:
+                return False
             self._client.remove(as_key)
         except self._aerospike.exception.RecordNotFound:
             return False
@@ -260,14 +264,18 @@ class AerospikeCache(BaseCache):
         cheap operation that bypasses loading the actual data on the backend.
 
         :param key: the key to check
+        :returns: ``True`` if the key exists, ``False`` if it does not
+        :rtype: boolean
         """
-        # TODO: not implemented
-        raise NotImplementedError(
-            "%s doesn't have an efficient implementation of `has`. That "
-            "means it is impossible to check whether a key exists without "
-            "fully loading the key's data. Consider using `self.get` "
-            "explicitly if you don't care about performance."
-        )
+        try:
+            as_key = (self._namespace, self._set, key)
+            (_, meta) = self._client.exists(as_key)
+            if meta is None:
+                return False
+        except self._aerospike.exception.RecordNotFound:
+            return False
+
+        return True
 
     def inc(self, key, delta=1):
         """Increments the value of a key by `delta`.  If the key does
