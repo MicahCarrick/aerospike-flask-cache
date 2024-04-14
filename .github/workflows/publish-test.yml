@@ -1,6 +1,6 @@
 # This workflow will build the packages and upload to TestPyPI
 
-name: Build [dev]
+name: Publish Test
 on:
   push:
     branches: [ "dev" ]
