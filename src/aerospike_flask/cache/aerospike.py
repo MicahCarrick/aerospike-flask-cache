@@ -48,7 +48,7 @@ class AerospikeCache(BaseCache):
             cls._aerospike_batch = aerospike_batch
             cls._aerospike_ops = aerospike_ops
             logger.debug("Aerospike client version %s", aerospike.__version__)
-        except ImportError as err:
+        except ImportError as err:  # pragma: no cover
             raise RuntimeError("aerospike module not found") from err
 
         if 'CACHE_AEROSPIKE_NAMESPACE' not in config:
@@ -109,9 +109,9 @@ class AerospikeCache(BaseCache):
         logger.debug("Truncating %s.%s", self._namespace, self._set)
         # Note: truncate is async
         if self._client.truncate(self._namespace, self._set, 0) != 0:
-            return False
+            return False  # pragma: no cover
 
-        return False
+        return True
 
     def close_client(self):
         """Close client connections if the client is instantiated and

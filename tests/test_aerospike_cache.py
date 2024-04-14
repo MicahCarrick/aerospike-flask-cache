@@ -62,6 +62,12 @@ class TestBaseCache(CacheTestsBase):
         assert c.add("k1", "v2") is False
         assert c.get("k1") == "v1"
 
+    def test_clear(self, c):
+        """clear issues a trucate which asychronously deletes all records
+        """
+        c.set("k1", "v1")
+        assert c.clear() is True
+
     def test_delete(self, c):
         """delete returns True if the value was deleted and False if it did
         not exist and/or was not deleted
