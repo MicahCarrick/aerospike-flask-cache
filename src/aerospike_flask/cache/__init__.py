@@ -8,7 +8,7 @@
     :license: BSD, see LICENSE for more details.
 """
 
-__version__ = "0.1.1.dev1"
+__version__ = "0.1.1.dev2"
 
 
 def get_version():
