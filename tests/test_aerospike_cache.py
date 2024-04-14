@@ -7,6 +7,7 @@
     :copyright: (c) 2024 by Micah Carrick.
     :license: BSD, see LICENSE for more details.
 """
+# pylint: disable=no-member
 
 from os import getenv
 from time import sleep
@@ -78,6 +79,17 @@ class TestBaseCache(CacheTestsBase):
         assert c.delete("k1") is True
         assert c.get("k1") is None
 
+    def test_delete_many(self, c):
+        """delete many should return a list of all the keys that were deleted
+        """
+        c.set_many({"k1": "v1", "k2": "v2"})
+        assert c.delete_many("k1", "k2") == ["k1", "k2"]
+        assert c.get_many("k1", "k2") == [None, None]
+
+        c.set_many({"k1": "v1", "k2": "v2"})
+        assert c.delete_many("k1", "k2", "k3") == ["k1", "k2"]
+        assert c.get_many("k1", "k2") == [None, None]
+
     def test_get(self, c):
         """get method returns value or None if not found
         """
@@ -89,7 +101,7 @@ class TestBaseCache(CacheTestsBase):
 
     def test_get_dict(self, c):
         """get_dict gets all the values but returns a dict of key/value pairs
-        rather than just a list of values.
+        rather than just a list of values
         """
         assert c.get_dict("k1", "k2") == {"k1": None, "k2": None}
         keys = c.set_many({"k1": "v1", "k2": "v2"})
@@ -98,7 +110,7 @@ class TestBaseCache(CacheTestsBase):
 
     def test_get_many(self, c):
         """get_many gets value for all keys and ``None`` for keys that don't
-        exist.
+        exist
         """
         assert c.get_many("k1", "k2") == [None, None]
         keys = c.set_many({"k1": "v1", "k2": "v2"})
@@ -110,11 +122,31 @@ class TestBaseCache(CacheTestsBase):
 
     def test_has(self, c):
         """has returns ``True`` when the key exists and ``False`` when it
-        does not.
+        does not
         """
         c.set("k1", "v1")
         assert c.has("k1") is True
         assert c.has("k2") is False
+
+    def test_inc(self, c):
+        """inc method should increment the value or set it if the record
+        doesn't already exist
+        """
+        assert c.inc("k1", 10) == 10
+        assert c.inc("k1", 5) == 15
+
+        # backend error returns None
+        assert c.inc("k1", "foo") is None
+
+    def test_dec(self, c):
+        """dec method should decrement the value or set it if the record
+        doesn't already exist
+        """
+        assert c.dec("k1", 10) == -10
+        assert c.dec("k1", 5) == -15
+
+        # backend error returns None
+        assert c.inc("k1", "foo") is None
 
     def test_set(self, c):
         """set method always replaces the value
@@ -149,7 +181,6 @@ class TestAerospikeCache(CacheTestsBase):
                 int(getenv("AEROSPIKE_FLASK_CACHE_TEST_DB_PORT", "3000")),
                 getenv("AEROSPIKE_FLASK_CACHE_TEST_DB_TLS_NAME")
             )]
-        # pylint: disable=no-member
         client = aerospike.client({'hosts': asconfig}).connect()
         config = {
             'CACHE_AEROSPIKE_CLIENT': client,
@@ -198,7 +229,7 @@ class TestAerospikeCache(CacheTestsBase):
         """get with timeout should set Aerospike TTL
         """
         # pylint: disable=missing-class-docstring,missing-function-docstring
-        # pylint: disable=no-member,too-few-public-methods
+        # pylint: disable=too-few-public-methods
 
         # 1 second TTL
         c.set("k1", "v1", timeout=1)

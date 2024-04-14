@@ -140,9 +140,7 @@ class AerospikeCache(BaseCache):
         :param delta: the delta to subtract.
         :returns: The new value or `None` for backend errors.
         """
-        # TODO: not implemented
-        value = (self.get(key) or 0) - delta
-        return value if self.set(key, value) else None
+        return self.inc(key, 0 - delta)
 
     def delete(self, key):
         """Delete `key` from the cache.
@@ -168,12 +166,11 @@ class AerospikeCache(BaseCache):
         :returns: A list containing all successfully deleted keys
         :rtype: boolean
         """
-        # TODO: not implemented
-        deleted_keys = []
-        for key in keys:
-            if self.delete(key):
-                deleted_keys.append(key)
-        return deleted_keys
+        as_keys = [(self._namespace, self._set, k) for k in keys]
+        records = self._client.batch_remove(as_keys)
+        r_val = [r.record[0][2] for r in records.batch_records if r.result == 0]
+
+        return r_val
 
     def get(self, key):
         """Look up key in the cache and return the Aerospike bin value.
@@ -280,9 +277,26 @@ class AerospikeCache(BaseCache):
         :param delta: the delta to add.
         :returns: The new value or ``None`` for backend errors.
         """
-        # TODO: not implemented
-        value = (self.get(key) or 0) + delta
-        return value if self.set(key, value) else None
+        as_key = (self._namespace, self._set, key)
+
+        if self.has(key):
+            ops = [
+                self._aerospike_ops.increment(self._bin_name, delta),
+                self._aerospike_ops.read(self._bin_name)
+            ]
+        else:
+            ops = [
+                self._aerospike_ops.write(self._bin_name, delta),
+                self._aerospike_ops.read(self._bin_name)
+            ]
+
+        try:
+            (_, _, bins) = self._client.operate(as_key, ops)
+        except self._aerospike.exception.ParamError as err:
+            logger.error("Error %s: %s", err.code, err.msg)
+            return None
+
+        return bins[self._bin_name]
 
     def is_connected(self):
         """Check if the Aerospike client is initialized and connected to the
@@ -333,8 +347,6 @@ class AerospikeCache(BaseCache):
                   f"Error {err.code}: {err.msg}"
             logger.error(msg)
             return False
-        except self._aerospike.exception.RecordNotFound:
-            return True
         except self._aerospike.exception.AerospikeError as err:
             logger.error("Error %s: %s", err.code, err.msg)
             return False
