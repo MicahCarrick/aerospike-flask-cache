@@ -89,6 +89,18 @@ class TestBaseCache(CacheTestsBase):
         v2 = c.get("k2")
         assert v2 is None
 
+    def test_get_many(self, c):
+        """get_many gets value for all keys and ``None`` for keys that don't
+        exist.
+        """
+        assert c.get_many("k1", "k2") == [None, None]
+        keys = c.set_many({"k1": "v1", "k2": "v2"})
+        values = c.get_many(*keys)
+        assert isinstance(values, list)
+        assert values == ["v1", "v2"]
+        values = c.get_many("k2", "foo", "k1")
+        assert values == ["v2", None, "v1"]
+
 
 class TestAerospikeCache(CacheTestsBase):
     """Tests for Aerospike specific functionality

@@ -209,20 +209,25 @@ class AerospikeCache(BaseCache):
             return None
 
     def get_many(self, *keys):
-        """Returns a list of values for the given keys.
-        For each key an item in the list is created::
-
-            foo, bar = cache.get_many("foo", "bar")
-
-        Has the same error handling as :meth:`get`.
+        """Returns a list of values for the given keys using an Aerospike
+        batch read operation.
 
         :param keys: The function accepts multiple keys as positional
                      arguments.
+        :returns: list of values
+        :rtype: list
         """
         key_tuples = [(self._namespace, self._set, k) for k in keys]
+        records = self._client.get_many(key_tuples)
+        r_val = []
+        for record in records:
+            bins = record[2]
+            if bins is None:
+                r_val.append(None)
+            else:
+                r_val.append(bins[self._bin_name])
 
-        records = client.get_many(keyTuples)
-        return [self.get(k) for k in keys]
+        return r_val
 
     def _get_ttl_from_timeout(self, timeout):
         """Get Aerospike TTL from a per-transaction timeout value.
