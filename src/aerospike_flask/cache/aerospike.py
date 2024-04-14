@@ -200,8 +200,7 @@ class AerospikeCache(BaseCache):
         :param keys: The function accepts multiple keys as positional
                      arguments.
         """
-        # TODO: not implemented
-        return dict(zip(keys, self.get_many(*keys)))  # noqa: B905
+        return dict(zip(keys, self.get_many(*keys)))
 
     def get_metadata(self, key):
         """Look up key in the cache and return the Aerospike record metadata.

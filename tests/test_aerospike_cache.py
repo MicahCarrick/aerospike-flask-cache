@@ -87,6 +87,15 @@ class TestBaseCache(CacheTestsBase):
         v2 = c.get("k2")
         assert v2 is None
 
+    def test_get_dict(self, c):
+        """get_dict gets all the values but returns a dict of key/value pairs
+        rather than just a list of values.
+        """
+        assert c.get_dict("k1", "k2") == {"k1": None, "k2": None}
+        keys = c.set_many({"k1": "v1", "k2": "v2"})
+        values = c.get_dict(*keys)
+        assert values == {"k1": "v1", "k2": "v2"}
+
     def test_get_many(self, c):
         """get_many gets value for all keys and ``None`` for keys that don't
         exist.
