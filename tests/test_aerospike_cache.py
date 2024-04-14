@@ -61,6 +61,13 @@ class TestBaseCache(CacheTestsBase):
         assert c.add("k1", "v2") is False
         assert c.get("k1") == "v1"
 
+    def test_delete(self, c):
+        assert c.delete("k1") is False
+        c.set("k1", "v1")
+        assert c.get("k1") is not None
+        assert c.delete("k1") is True
+        assert c.get("k1") is None
+
     def test_set(self, c):
         """set method always replaces the value
         """

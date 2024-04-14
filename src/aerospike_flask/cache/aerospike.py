@@ -149,7 +149,14 @@ class AerospikeCache(BaseCache):
         :returns: Whether the key existed and has been deleted.
         :rtype: boolean
         """
-        # TODO: not implemented
+        as_key = (self._namespace, self._set, key)
+
+        try:
+            (key, meta) = self._client.exists(as_key)
+            self._client.remove(as_key)
+        except self._aerospike.exception.RecordNotFound:
+            return False
+
         return True
 
     def delete_many(self, *keys):
@@ -217,8 +224,8 @@ class AerospikeCache(BaseCache):
         :returns: list of values
         :rtype: list
         """
-        key_tuples = [(self._namespace, self._set, k) for k in keys]
-        records = self._client.get_many(key_tuples)
+        as_keys = [(self._namespace, self._set, k) for k in keys]
+        records = self._client.get_many(as_keys)
         r_val = []
         for record in records:
             bins = record[2]
@@ -358,10 +365,10 @@ class AerospikeCache(BaseCache):
         :returns: A list containing all keys successfully set
         :rtype: list
         """
-        key_tuples = [(self._namespace, self._set, k) for k in mapping.keys()]
+        as_keys = [(self._namespace, self._set, k) for k in mapping.keys()]
         batch = []
 
-        for k in key_tuples:
+        for k in as_keys:
             batch.append(
                 self._aerospike_batch.Write(
                     key=k,
