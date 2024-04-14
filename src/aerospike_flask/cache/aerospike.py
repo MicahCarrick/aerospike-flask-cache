@@ -167,6 +167,80 @@ class AerospikeCache(BaseCache):
                 deleted_keys.append(key)
         return deleted_keys
 
+    def get(self, key):
+        """Look up key in the cache and return the Aerospike bin value.
+
+        :param key: the key to be looked up.
+        :returns: The value if it exists and is readable, else ``None``.
+        """
+        try:
+            as_key = (self._namespace, self._set, key)
+            (_, _, r_value) = self._client.get(as_key)
+            logger.debug("Cache hit on key: %s", key)
+            return r_value[self._bin_name]
+        except self._aerospike.exception.RecordNotFound:
+            logger.debug("Cache miss on key: %s", key)
+            return None
+
+    def get_dict(self, *keys):
+        """Like :meth:`get_many` but return a dict::
+
+            d = cache.get_dict("foo", "bar")
+            foo = d["foo"]
+            bar = d["bar"]
+
+        :param keys: The function accepts multiple keys as positional
+                     arguments.
+        """
+        # TODO: not implemented
+        return dict(zip(keys, self.get_many(*keys)))  # noqa: B905
+
+    def get_metadata(self, key):
+        """Look up key in the cache and return the Aerospike record metadata.
+
+        :param key: the key to be looked up.
+        :returns: The metadata if the record exists, else ``None``.
+        """
+        try:
+            as_key = (self._namespace, self._set, key)
+            (_, r_meta, _) = self._client.get(as_key)
+            return r_meta
+        except self._aerospike.exception.RecordNotFound:
+            return None
+
+    def get_many(self, *keys):
+        """Returns a list of values for the given keys.
+        For each key an item in the list is created::
+
+            foo, bar = cache.get_many("foo", "bar")
+
+        Has the same error handling as :meth:`get`.
+
+        :param keys: The function accepts multiple keys as positional
+                     arguments.
+        """
+        key_tuples = [(self._namespace, self._set, k) for k in keys]
+
+        records = client.get_many(keyTuples)
+        return [self.get(k) for k in keys]
+
+    def _get_ttl_from_timeout(self, timeout):
+        """Get Aerospike TTL from a per-transaction timeout value.
+
+        :param timeout: the cache timeout for the key in seconds (if not
+                        specified, it uses the default timeout). A timeout of
+                        0 indicates that the cache never expires.
+        :returns: timeout value as an Aerospike TTL
+        :rtype: integer
+        """
+        if timeout is None:
+            return self.default_timeout
+
+        if timeout == 0:
+            return self._aerospike.TTL_NEVER_EXPIRE
+
+        return timeout
+
     def has(self, key):
         """Checks if a key exists in the cache without returning it. This is a
         cheap operation that bypasses loading the actual data on the backend.
@@ -195,21 +269,6 @@ class AerospikeCache(BaseCache):
         value = (self.get(key) or 0) + delta
         return value if self.set(key, value) else None
 
-    def get(self, key):
-        """Look up key in the cache and return the Aerospike bin value.
-
-        :param key: the key to be looked up.
-        :returns: The value if it exists and is readable, else ``None``.
-        """
-        try:
-            as_key = (self._namespace, self._set, key)
-            (_, _, r_value) = self._client.get(as_key)
-            logger.debug("Cache hit on key: %s", key)
-            return r_value[self._bin_name]
-        except self._aerospike.exception.RecordNotFound:
-            logger.debug("Cache miss on key: %s", key)
-            return None
-
     def is_connected(self):
         """Check if the Aerospike client is initialized and connected to the
         database.
@@ -221,63 +280,6 @@ class AerospikeCache(BaseCache):
             return True
 
         return False
-
-    def get_metadata(self, key):
-        """Look up key in the cache and return the Aerospike record metadata.
-
-        :param key: the key to be looked up.
-        :returns: The metadata if the record exists, else ``None``.
-        """
-        try:
-            as_key = (self._namespace, self._set, key)
-            (_, r_meta, _) = self._client.get(as_key)
-            return r_meta
-        except self._aerospike.exception.RecordNotFound:
-            return None
-
-    def get_many(self, *keys):
-        """Returns a list of values for the given keys.
-        For each key an item in the list is created::
-
-            foo, bar = cache.get_many("foo", "bar")
-
-        Has the same error handling as :meth:`get`.
-
-        :param keys: The function accepts multiple keys as positional
-                     arguments.
-        """
-        # TODO: not implemented
-        return [self.get(k) for k in keys]
-
-    def get_dict(self, *keys):
-        """Like :meth:`get_many` but return a dict::
-
-            d = cache.get_dict("foo", "bar")
-            foo = d["foo"]
-            bar = d["bar"]
-
-        :param keys: The function accepts multiple keys as positional
-                     arguments.
-        """
-        # TODO: not implemented
-        return dict(zip(keys, self.get_many(*keys)))  # noqa: B905
-
-    def _get_ttl_from_timeout(self, timeout):
-        """Get Aerospike TTL from a per-transaction timeout value.
-
-        :param timeout: the cache timeout for the key in seconds (if not
-                        specified, it uses the default timeout). A timeout of
-                        0 indicates that the cache never expires.
-        :returns: timeout value as an Aerospike TTL
-        :rtype: integer
-        """
-        if timeout is None:
-            return self.default_timeout
-
-        if timeout == 0:
-            return self._aerospike.TTL_NEVER_EXPIRE
-
-        return timeout
 
     def _put(self, key, value, timeout=None, replace=True):
         """Save a value in Aerospike using the single-record put operations.
@@ -316,7 +318,7 @@ class AerospikeCache(BaseCache):
                   f"Error {err.code}: {err.msg}"
             logger.error(msg)
             return False
-        except self._aerospike.exception.RecordNotFound:
+        except self._aerospike.exception.RecordNotFound as err:
             if replace:
                 logger.error("Error %s: %s", err.code, err.msg)
             return True
