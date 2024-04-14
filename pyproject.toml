@@ -8,7 +8,7 @@ dynamic = ["version"]
 authors = [
   { name="Micah Carrick", email="micahcarrick@gmail.com" },
 ]
-description = "Aerospike cache backend for Flask."
+description = "Aerospike cache backend for Flask"
 readme = "README.md"
 # capped Python version due aerospike.client
 requires-python = ">=3.8, <=3.13"
