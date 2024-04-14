@@ -247,7 +247,10 @@ class TestAerospikeCache(CacheTestsBase):
         # ForbiddenError is caught and returns False
         class MockForbiddenErrorClient():
             def put(self, key, bins=None, meta=None, policy=None):
-                raise aerospike.exception.ForbiddenError
+                e = aerospike.exception.ForbiddenError
+                e.code = 22
+                e.msg = "this is a test mock"
+                raise e
 
         monkeypatch.setattr(c, '_client', MockForbiddenErrorClient)
         assert c.set("k1", "v1") is False
@@ -255,7 +258,10 @@ class TestAerospikeCache(CacheTestsBase):
         # AerospikeError is caught and returns False
         class MockAerospikeErrorClient():
             def put(self, key, bins=None, meta=None, policy=None):
-                raise aerospike.exception.AerospikeError
+                e = aerospike.exception.AerospikeError
+                e.code = -1
+                e.msg = "this is a test mock"
+                raise e
 
         monkeypatch.setattr(c, '_client', MockAerospikeErrorClient)
         assert c.set("k1", "v1") is False

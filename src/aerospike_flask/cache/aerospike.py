@@ -235,22 +235,29 @@ class AerospikeCache(BaseCache):
 
         return r_val
 
-    def _get_ttl_from_timeout(self, timeout):
-        """Get Aerospike TTL from a per-transaction timeout value.
+    def _timeout_to_ttl_policies(self, timeout):
+        """Get Aerospike TTL meta and policy for a given timeout.
 
         :param timeout: the cache timeout for the key in seconds (if not
                         specified, it uses the default timeout). A timeout of
                         0 indicates that the cache never expires.
-        :returns: timeout value as an Aerospike TTL
-        :rtype: integer
+        :returns: Tuple of 2 dictionaries for use with Aerospike methods:
+                  ``(meta, policy)``
+        :rtype: tuple
         """
+        ttl = timeout
+
         if timeout is None:
-            return self.default_timeout
+            ttl = self.default_timeout
+        elif timeout == 0:
+            ttl = self._aerospike.TTL_NEVER_EXPIRE
 
-        if timeout == 0:
-            return self._aerospike.TTL_NEVER_EXPIRE
+        meta = {'ttl': ttl}
+        policy = {}
+        if timeout != 0:
+            policy['ttl'] = ttl
 
-        return timeout
+        return meta, policy
 
     def has(self, key):
         """Checks if a key exists in the cache without returning it. This is a
@@ -310,6 +317,16 @@ class AerospikeCache(BaseCache):
 
         return False
 
+    def _log_aerospike_error(self, err):
+        """Log a detailed message about
+        """
+        if isinstance(err, self._aerospike.exception.ForbiddenError):
+            msg = "Failed to set TTL. Aerospike namespace supervisor " + \
+                  "(nsup) may be disabled. Error %s: %s"
+            logger.error(msg, err.code, err.msg)
+        else:
+            logger.error("Error %s: %s", err.code, err.msg)
+
     def _put(self, key, value, timeout=None, replace=True):
         """Save a value in Aerospike using the single-record put operations.
 
@@ -324,13 +341,7 @@ class AerospikeCache(BaseCache):
                   errors.
         :rtype: boolean
         """
-        policy = {}
-        meta = {}
-        ttl = self._get_ttl_from_timeout(timeout)
-        meta['ttl'] = ttl
-
-        if timeout != 0:
-            policy['ttl'] = ttl
+        meta, policy = self._timeout_to_ttl_policies(timeout)
 
         if replace:
             policy['exists'] = self._aerospike.POLICY_EXISTS_CREATE_OR_REPLACE
@@ -341,14 +352,8 @@ class AerospikeCache(BaseCache):
 
         try:
             self._client.put(as_key, {self._bin_name: value}, meta, policy)
-        except self._aerospike.exception.ForbiddenError as err:
-            msg = f"Failed to set TTL (timeout={timeout}). " + \
-                  "Aerospike namespace supervisor (nsup) is disabled. " + \
-                  f"Error {err.code}: {err.msg}"
-            logger.error(msg)
-            return False
         except self._aerospike.exception.AerospikeError as err:
-            logger.error("Error %s: %s", err.code, err.msg)
+            self._log_aerospike_error(err)
             return False
 
         return True
