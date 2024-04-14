@@ -334,9 +334,7 @@ class AerospikeCache(BaseCache):
                   f"Error {err.code}: {err.msg}"
             logger.error(msg)
             return False
-        except self._aerospike.exception.RecordNotFound as err:
-            if replace:
-                logger.error("Error %s: %s", err.code, err.msg)
+        except self._aerospike.exception.RecordNotFound:
             return True
         except self._aerospike.exception.AerospikeError as err:
             logger.error("Error %s: %s", err.code, err.msg)
