@@ -62,30 +62,14 @@ class TestBaseCache(CacheTestsBase):
         assert c.get("k1") == "v1"
 
     def test_delete(self, c):
+        """delete returns True if the value was deleted and False if it did
+        not exist and/or was not deleted
+        """
         assert c.delete("k1") is False
         c.set("k1", "v1")
         assert c.get("k1") is not None
         assert c.delete("k1") is True
         assert c.get("k1") is None
-
-    def test_set(self, c):
-        """set method always replaces the value
-        """
-        assert c.set("k1", "v1")
-        assert c.set("k1", "v2")
-        assert c.get("k1") == "v2"
-
-    def test_set_many(self, c):
-        """set_many replaces all values in mapping and returns list of keys
-        successfully set
-        """
-        c.set("k1", "value_to_replace")
-        r = c.set_many({"k1": "v1", "k2": "v2"})
-        assert isinstance(r, list)
-        assert "k1" in r
-        assert c.get("k1") == "v1"
-        assert "k2" in r
-        assert c.get("k2") == "v2"
 
     def test_get(self, c):
         """get method returns value or None if not found
@@ -107,6 +91,25 @@ class TestBaseCache(CacheTestsBase):
         assert values == ["v1", "v2"]
         values = c.get_many("k2", "foo", "k1")
         assert values == ["v2", None, "v1"]
+
+    def test_set(self, c):
+        """set method always replaces the value
+        """
+        assert c.set("k1", "v1")
+        assert c.set("k1", "v2")
+        assert c.get("k1") == "v2"
+
+    def test_set_many(self, c):
+        """set_many replaces all values in mapping and returns list of keys
+        successfully set
+        """
+        c.set("k1", "value_to_replace")
+        r = c.set_many({"k1": "v1", "k2": "v2"})
+        assert isinstance(r, list)
+        assert "k1" in r
+        assert c.get("k1") == "v1"
+        assert "k2" in r
+        assert c.get("k2") == "v2"
 
 
 class TestAerospikeCache(CacheTestsBase):
