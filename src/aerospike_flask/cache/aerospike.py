@@ -264,12 +264,9 @@ class AerospikeCache(BaseCache):
         :returns: ``True`` if the key exists, ``False`` if it does not
         :rtype: boolean
         """
-        try:
-            as_key = (self._namespace, self._set, key)
-            (_, meta) = self._client.exists(as_key)
-            if meta is None:
-                return False
-        except self._aerospike.exception.RecordNotFound:
+        as_key = (self._namespace, self._set, key)
+        (_, meta) = self._client.exists(as_key)
+        if meta is None:
             return False
 
         return True
