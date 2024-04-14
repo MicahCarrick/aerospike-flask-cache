@@ -276,7 +276,19 @@ class AerospikeCache(BaseCache):
         return timeout
 
     def _put(self, key, value, timeout=None, replace=True):
+        """Save a value in Aerospike using the single-record put operations.
 
+        :param key: the key to set
+        :param value: the value for the key
+        :param timeout: the cache timeout for the key in seconds (if not
+                        specified, it uses the default timeout). A timeout of
+                        0 indicates that the cache never expires.
+        "param replace: whether or not the record should be replaced if it
+                        already exists
+        :returns: ``True`` if key has been updated, ``False`` for backend
+                  errors.
+        :rtype: boolean
+        """
         policy = {}
         meta = {}
         ttl = self._get_ttl_from_timeout(timeout)
