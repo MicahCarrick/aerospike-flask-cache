@@ -153,13 +153,10 @@ class AerospikeCache(BaseCache):
         """
         as_key = (self._namespace, self._set, key)
 
-        try:
-            (_, meta) = self._client.exists(as_key)
-            if meta is None:
-                return False
-            self._client.remove(as_key)
-        except self._aerospike.exception.RecordNotFound:
+        (_, meta) = self._client.exists(as_key)
+        if meta is None:
             return False
+        self._client.remove(as_key)
 
         return True
 
