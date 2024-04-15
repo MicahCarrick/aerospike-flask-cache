@@ -270,6 +270,15 @@ class TestAerospikeCache(CacheTestsBase):
         sleep(2)
         assert c.get(key) is None
 
+        key1 = str(uuid4())
+        key2 = str(uuid4())
+        c.set_many({key1: "v1", key2: "v2"}, timeout=1)
+        assert c.get(key1) == "v1"
+        assert c.get(key2) == "v2"
+        sleep(2)
+        assert c.get(key1) is None
+        assert c.get(key2) is None
+
         # ForbiddenError is caught and returns False
         class MockForbiddenErrorClient():
             def put(self, key, bins=None, meta=None, policy=None):
