@@ -383,6 +383,7 @@ class AerospikeCache(BaseCache):
         :returns: A list containing all keys successfully set
         :rtype: list
         """
+        meta, policy = self._timeout_to_ttl_policies(timeout)
         as_keys = [(self._namespace, self._set, k) for k in mapping.keys()]
         batch = []
 
@@ -392,12 +393,13 @@ class AerospikeCache(BaseCache):
                     key=k,
                     ops=[
                         self._aerospike_ops.write(self._bin_name, mapping[k[2]])
-                    ]
+                    ],
+                    meta=meta
                 )
             )
 
         batch_records = self._aerospike_batch.BatchRecords(batch)
-        self._client.batch_write(batch_records)
+        self._client.batch_write(batch_records, policy)
 
         r_list = []
         for br in batch_records.batch_records:

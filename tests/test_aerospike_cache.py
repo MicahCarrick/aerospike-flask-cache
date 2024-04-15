@@ -7,10 +7,11 @@
     :copyright: (c) 2024 by Micah Carrick.
     :license: BSD, see LICENSE for more details.
 """
-# pylint: disable=no-member
+# pylint: disable=no-member,unused-argument
 
 from os import getenv
 from time import sleep
+from uuid import uuid4
 
 import pytest
 
@@ -225,24 +226,49 @@ class TestAerospikeCache(CacheTestsBase):
             }
             _ = AerospikeCache.factory(None, config, [], {})
 
-    def test_set_with_ttl(self, c, monkeypatch):
-        """get with timeout should set Aerospike TTL
+    def test_timeout_ttl(self, c, monkeypatch):
+        """all methods that write records set timeout as Aerospike TTL
         """
         # pylint: disable=missing-class-docstring,missing-function-docstring
         # pylint: disable=too-few-public-methods
+        timeout_to_ttl = (
+            (0, -1 & 0xffffffff),  # A tiemout of 0 TTL (never expire)
+            (123, 123),  # non-zero, non-null value sets TTL to timeout
+            (None, 300)  # default
+        )
 
-        # 1 second TTL
-        c.set("k1", "v1", timeout=1)
-        assert c.get("k1") == "v1"
-        meta = c.get_metadata("k1")
-        assert meta['ttl'] == 1
+        for t in timeout_to_ttl:
+            # timeout results in correct Aerospike TTL
+            timeout, ttl = t
+
+            key = str(uuid4())
+            assert c.set(key, "v1", timeout=timeout) is True
+            meta = c.get_metadata(key)
+            assert meta['ttl'] == ttl
+
+            key = str(uuid4())
+            assert c.add(key, "v1", timeout=timeout) is True
+            meta = c.get_metadata(key)
+            assert meta['ttl'] == ttl
+
+            key1 = str(uuid4())
+            key2 = str(uuid4())
+            c.set_many({key1: "v1", key2: "v2"}, timeout=timeout)
+            assert c.get_metadata(key1)['ttl'] == ttl
+            assert c.get_metadata(key2)['ttl'] == ttl
+
+        # timeout removes record from cache
+        key = str(uuid4())
+        c.set(key, "v2", timeout=1)
+        assert c.get(key) == "v2"
         sleep(2)
-        assert c.get("k1") is None
+        assert c.get(key) is None
 
-        # 0 TTL (never expire)
-        c.set("k2", "v2", timeout=0)
-        meta = c.get_metadata("k2")
-        assert meta['ttl'] == -1 & 0xffffffff
+        key = str(uuid4())
+        c.add(key, "v2", timeout=1)
+        assert c.get(key) == "v2"
+        sleep(2)
+        assert c.get(key) is None
 
         # ForbiddenError is caught and returns False
         class MockForbiddenErrorClient():
