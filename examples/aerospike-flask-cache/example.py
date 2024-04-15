@@ -33,6 +33,7 @@ app = Flask(__name__)
 app.config.from_mapping(config)
 cache = Cache(app)
 
+
 #: This is an example of a cached view
 @app.route("/api/now")
 @cache.cached(50)
@@ -64,6 +65,11 @@ def _sub(a, b):
 
 @app.route("/api/add/<int:a>/<int:b>")
 def add(a, b):
+    try:
+        a = int(a)
+        b = int(b)
+    except ValueError:
+        return "Parameter is not an integer", 400
     return str(_add(a, b))
 
 
@@ -81,6 +87,7 @@ def delete_cache():
 @app.route("/html")
 @app.route("/html/<foo>")
 def html(foo=None):
+    # pylint: disable=disallowed-name
     if foo is not None:
         cache.set("foo", foo)
     return render_template_string(

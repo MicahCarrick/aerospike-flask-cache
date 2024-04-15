@@ -7,9 +7,11 @@
     :copyright: (c) 2024 by Micah Carrick.
     :license: BSD, see LICENSE for more details.
 """
+# pylint: disable=no-member,unused-argument
 
 from os import getenv
 from time import sleep
+from uuid import uuid4
 
 import pytest
 
@@ -47,6 +49,7 @@ class CacheTestsBase:
         }
         c = AerospikeCache.factory(None, config, [], {})
         c.clear()
+        sleep(1)  # allow time for truncate
         yield c
 
 
@@ -54,10 +57,43 @@ class TestBaseCache(CacheTestsBase):
     """Tests for methods defined in flask_caching.backends.base.BaseCache
     (cachelib.base.BaseCache)
     """
-    def test_set(self, c):
-        """set method persists the value
+    def test_add(self, c):
+        """add method does not replace the value if it exists
         """
-        assert c.set("k1", "v1")
+        assert c.add("k1", "v1")
+        assert c.add("k1", "v2") is False
+        assert c.get("k1") == "v1"
+
+    def test_clear(self, c):
+        """clear issues a trucate which asychronously deletes all records
+        """
+        c.set("k1", "v1")
+        assert c.clear() is True
+
+    def test_delete(self, c):
+        """delete returns True if the value was deleted and False if it did
+        not exist and/or was not deleted
+        """
+        key = str(uuid4())
+        assert c.delete(key) is False
+        c.set(key, "v1")
+        assert c.get(key) is not None
+        assert c.delete(key) is True
+        assert c.get(key) is None
+
+    def test_delete_many(self, c):
+        """delete many should return a list of all the keys that were deleted
+        """
+        key1 = str(uuid4())
+        key2 = str(uuid4())
+        key3 = str(uuid4())
+        c.set_many({key1: "v1", key2: "v2"})
+        assert c.delete_many(key1, key2) == [key1, key2]
+        assert c.get_many(key1, key2) == [None, None]
+
+        c.set_many({key1: "v1", key2: "v2"})
+        assert c.delete_many(key1, key2, key3) == [key1, key2]
+        assert c.get_many(key1, key2) == [None, None]
 
     def test_get(self, c):
         """get method returns value or None if not found
@@ -67,6 +103,75 @@ class TestBaseCache(CacheTestsBase):
         assert v1 == "v1"
         v2 = c.get("k2")
         assert v2 is None
+
+    def test_get_dict(self, c):
+        """get_dict gets all the values but returns a dict of key/value pairs
+        rather than just a list of values
+        """
+        assert c.get_dict("k1", "k2") == {"k1": None, "k2": None}
+        keys = c.set_many({"k1": "v1", "k2": "v2"})
+        values = c.get_dict(*keys)
+        assert values == {"k1": "v1", "k2": "v2"}
+
+    def test_get_many(self, c):
+        """get_many gets value for all keys and ``None`` for keys that don't
+        exist
+        """
+        assert c.get_many("k1", "k2") == [None, None]
+        keys = c.set_many({"k1": "v1", "k2": "v2"})
+        values = c.get_many(*keys)
+        assert isinstance(values, list)
+        assert values == ["v1", "v2"]
+        values = c.get_many("k2", "foo", "k1")
+        assert values == ["v2", None, "v1"]
+
+    def test_has(self, c):
+        """has returns ``True`` when the key exists and ``False`` when it
+        does not
+        """
+        c.set("k1", "v1")
+        assert c.has("k1") is True
+        assert c.has("k2") is False
+
+    def test_inc(self, c):
+        """inc method should increment the value or set it if the record
+        doesn't already exist
+        """
+        key = str(uuid4())
+        assert c.inc(key, 10) == 10
+        assert c.inc(key, 5) == 15
+
+        # backend error returns None
+        assert c.inc(key, "foo") is None
+
+    def test_dec(self, c):
+        """dec method should decrement the value or set it if the record
+        doesn't already exist
+        """
+        assert c.dec("k1", 10) == -10
+        assert c.dec("k1", 5) == -15
+
+        # backend error returns None
+        assert c.inc("k1", "foo") is None
+
+    def test_set(self, c):
+        """set method always replaces the value
+        """
+        assert c.set("k1", "v1")
+        assert c.set("k1", "v2")
+        assert c.get("k1") == "v2"
+
+    def test_set_many(self, c):
+        """set_many replaces all values in mapping and returns list of keys
+        successfully set
+        """
+        c.set("k1", "value_to_replace")
+        r = c.set_many({"k1": "v1", "k2": "v2"})
+        assert isinstance(r, list)
+        assert "k1" in r
+        assert c.get("k1") == "v1"
+        assert "k2" in r
+        assert c.get("k2") == "v2"
 
 
 class TestAerospikeCache(CacheTestsBase):
@@ -82,7 +187,6 @@ class TestAerospikeCache(CacheTestsBase):
                 int(getenv("AEROSPIKE_FLASK_CACHE_TEST_DB_PORT", "3000")),
                 getenv("AEROSPIKE_FLASK_CACHE_TEST_DB_TLS_NAME")
             )]
-        # pylint: disable=no-member
         client = aerospike.client({'hosts': asconfig}).connect()
         config = {
             'CACHE_AEROSPIKE_CLIENT': client,
@@ -127,29 +231,66 @@ class TestAerospikeCache(CacheTestsBase):
             }
             _ = AerospikeCache.factory(None, config, [], {})
 
-    def test_set_with_ttl(self, c, monkeypatch):
-        """get with timeout should set Aerospike TTL
+    def test_timeout_ttl(self, c, monkeypatch):
+        """all methods that write records set timeout as Aerospike TTL
         """
         # pylint: disable=missing-class-docstring,missing-function-docstring
-        # pylint: disable=no-member,too-few-public-methods
+        # pylint: disable=too-few-public-methods
+        timeout_to_ttl = (
+            (0, -1 & 0xffffffff),  # A tiemout of 0 TTL (never expire)
+            (123, 123),  # non-zero, non-null value sets TTL to timeout
+            (None, 300)  # default
+        )
 
-        # 1 second TTL
-        c.set("k1", "v1", timeout=1)
-        assert c.get("k1") == "v1"
-        meta = c.get_metadata("k1")
-        assert meta['ttl'] == 1
+        for t in timeout_to_ttl:
+            # timeout results in correct Aerospike TTL
+            timeout, ttl = t
+
+            key = str(uuid4())
+            assert c.set(key, "v1", timeout=timeout) is True
+            meta = c.get_metadata(key)
+            assert meta['ttl'] == ttl
+
+            key = str(uuid4())
+            assert c.add(key, "v1", timeout=timeout) is True
+            meta = c.get_metadata(key)
+            assert meta['ttl'] == ttl
+
+            key1 = str(uuid4())
+            key2 = str(uuid4())
+            c.set_many({key1: "v1", key2: "v2"}, timeout=timeout)
+            assert c.get_metadata(key1)['ttl'] == ttl
+            assert c.get_metadata(key2)['ttl'] == ttl
+
+        # timeout removes record from cache
+        key = str(uuid4())
+        c.set(key, "v2", timeout=1)
+        assert c.get(key) == "v2"
         sleep(2)
-        assert c.get("k1") is None
+        assert c.get(key) is None
 
-        # 0 TTL (never expire)
-        c.set("k2", "v2", timeout=0)
-        meta = c.get_metadata("k2")
-        assert meta['ttl'] == -1 & 0xffffffff
+        key = str(uuid4())
+        c.add(key, "v2", timeout=1)
+        assert c.get(key) == "v2"
+        sleep(2)
+        assert c.get(key) is None
+
+        key1 = str(uuid4())
+        key2 = str(uuid4())
+        c.set_many({key1: "v1", key2: "v2"}, timeout=1)
+        assert c.get(key1) == "v1"
+        assert c.get(key2) == "v2"
+        sleep(2)
+        assert c.get(key1) is None
+        assert c.get(key2) is None
 
         # ForbiddenError is caught and returns False
         class MockForbiddenErrorClient():
             def put(self, key, bins=None, meta=None, policy=None):
-                raise aerospike.exception.ForbiddenError
+                e = aerospike.exception.ForbiddenError
+                e.code = 22
+                e.msg = "this is a test mock"
+                raise e
 
         monkeypatch.setattr(c, '_client', MockForbiddenErrorClient)
         assert c.set("k1", "v1") is False
@@ -157,7 +298,10 @@ class TestAerospikeCache(CacheTestsBase):
         # AerospikeError is caught and returns False
         class MockAerospikeErrorClient():
             def put(self, key, bins=None, meta=None, policy=None):
-                raise aerospike.exception.AerospikeError
+                e = aerospike.exception.AerospikeError
+                e.code = -1
+                e.msg = "this is a test mock"
+                raise e
 
         monkeypatch.setattr(c, '_client', MockAerospikeErrorClient)
         assert c.set("k1", "v1") is False

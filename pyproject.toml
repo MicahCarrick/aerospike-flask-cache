@@ -8,8 +8,9 @@ dynamic = ["version"]
 authors = [
   { name="Micah Carrick", email="micahcarrick@gmail.com" },
 ]
-description = "Aerospike cache backend for Flask."
+description = "Aerospike cache backend for Flask"
 readme = "README.md"
+# capped Python version due aerospike.client
 requires-python = ">=3.8, <=3.13"
 dependencies = [
   "aerospike",
@@ -22,4 +23,7 @@ path = "src/aerospike_flask/cache/__init__.py"
 [tool.hatch.build.targets.wheel]
     packages = ["src/aerospike_flask"]
 
-[tool.pytest.ini_options]
+[tool.hatch.build.targets.sdist]
+  exclude = [
+    "/.github"
+  ]

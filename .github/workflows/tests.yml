@@ -3,13 +3,14 @@
 name: Tests
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
 permissions:
   contents: read
 jobs:
   build:
+    # specific Ubuntu version for Aerospike package
     runs-on: ubuntu-22.04
     strategy:
       matrix:
