@@ -74,22 +74,26 @@ class TestBaseCache(CacheTestsBase):
         """delete returns True if the value was deleted and False if it did
         not exist and/or was not deleted
         """
-        assert c.delete("k1") is False
-        c.set("k1", "v1")
-        assert c.get("k1") is not None
-        assert c.delete("k1") is True
-        assert c.get("k1") is None
+        key = str(uuid4())
+        assert c.delete(key) is False
+        c.set(key, "v1")
+        assert c.get(key) is not None
+        assert c.delete(key) is True
+        assert c.get(key) is None
 
     def test_delete_many(self, c):
         """delete many should return a list of all the keys that were deleted
         """
-        c.set_many({"k1": "v1", "k2": "v2"})
-        assert c.delete_many("k1", "k2") == ["k1", "k2"]
-        assert c.get_many("k1", "k2") == [None, None]
+        key1 = str(uuid4())
+        key2 = str(uuid4())
+        key3 = str(uuid4())
+        c.set_many({key1: "v1", key2: "v2"})
+        assert c.delete_many(key1, key2) == [key1, key2]
+        assert c.get_many(key1, key2) == [None, None]
 
-        c.set_many({"k1": "v1", "k2": "v2"})
-        assert c.delete_many("k1", "k2", "k3") == ["k1", "k2"]
-        assert c.get_many("k1", "k2") == [None, None]
+        c.set_many({key1: "v1", key2: "v2"})
+        assert c.delete_many(key1, key2, key3) == [key1, key2]
+        assert c.get_many(key1, key2) == [None, None]
 
     def test_get(self, c):
         """get method returns value or None if not found
@@ -133,11 +137,12 @@ class TestBaseCache(CacheTestsBase):
         """inc method should increment the value or set it if the record
         doesn't already exist
         """
-        assert c.inc("k1", 10) == 10
-        assert c.inc("k1", 5) == 15
+        key = str(uuid4())
+        assert c.inc(key, 10) == 10
+        assert c.inc(key, 5) == 15
 
         # backend error returns None
-        assert c.inc("k1", "foo") is None
+        assert c.inc(key, "foo") is None
 
     def test_dec(self, c):
         """dec method should decrement the value or set it if the record
