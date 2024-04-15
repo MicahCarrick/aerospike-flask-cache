@@ -64,6 +64,11 @@ def _sub(a, b):
 
 @app.route("/api/add/<int:a>/<int:b>")
 def add(a, b):
+    try:
+        a = int(a)
+        b = int(b)
+    except ValueError:
+        return "Parameter is not an integer", 400
     return str(_add(a, b))
 
 
