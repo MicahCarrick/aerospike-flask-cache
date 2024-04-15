@@ -175,7 +175,7 @@ Packages are published to PyPI with a Github Action when version tags are pushed
 To push a version tag:
 
 ```
-VERSION="$(python -c 'import aerospike_flask.cache; print(aerospike_flask.cache.__version__)')"; git tag -a -m $VERSION $VERSION
+VERSION="v$(python -c 'import aerospike_flask.cache; print(aerospike_flask.cache.__version__)')"; git tag -a -m $VERSION $VERSION
 git push --tags
 ```
 

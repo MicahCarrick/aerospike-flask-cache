@@ -37,7 +37,7 @@ jobs:
       id-token: write
     environment:
       name: pypi
-      url: https://test.pypi.org/p/aerospike-flask-cache
+      url: https://pypi.org/p/aerospike-flask-cache
     steps:
     - name: Download dist packages
       uses: actions/download-artifact@v4
