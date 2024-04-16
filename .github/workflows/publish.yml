@@ -63,6 +63,6 @@ jobs:
     - name: Release to Github
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "dist/aerospike_flask_cache-*.tar.gz"
-        body: "Source"
+        artifacts: dist/aerospike_flask_cache-*.tar.gz,dist/aerospike_flask_cache-*.whl"
+        generateReleaseNotes: true
         draft: true
